@@ -1,0 +1,4 @@
+{
+    "yang_utils": {% if YANG_UTILS is defined and "default" in YANG_UTILS.keys() %}{{ YANG_UTILS['default'] }}{% else %}""{% endif %},
+    "x509" : {% if "x509" in DEVICE_METADATA.keys() %}{{ DEVICE_METADATA["x509"] }}{% else %}""{% endif %}
+}
