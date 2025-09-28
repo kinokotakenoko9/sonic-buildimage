@@ -1062,6 +1062,11 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get purge
 sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get clean -y
 sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get autoremove -y
 
+{% if include_yang_utils == 'y' %}
+sudo cp $BUILD_TEMPLATES/yang-utils.timer $FILESYSTEM_ROOT_USR_LIB_SYSTEMD_SYSTEM
+echo "yang-utils.timer" | sudo tee -a $GENERATED_SERVICE_FILE
+{% endif %}
+
 {% for file in installer_extra_files.split(' ') -%}
 {% if file.strip() -%}
 {% set src = file.split(':')[0] -%}
