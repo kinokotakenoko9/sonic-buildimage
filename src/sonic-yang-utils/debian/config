@@ -1,0 +1,11 @@
+Source: sonic-yang-utils
+Section: devel
+Priority: optional
+Maintainer: Dmitri Chirkov <chdmitry2@gmail.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.8
+
+Package: sonic-yang-utils
+Architecture: any
+Depends: python3, python3-flask, python3-gunicorn, python3-redis, ${misc:Depends}
+Description: A yang web application for SONiC.
