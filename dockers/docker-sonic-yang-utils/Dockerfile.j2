@@ -1,9 +1,13 @@
-FROM docker-config-engine-bookworm-{{DOCKER_USERNAME}}:{{DOCKER_USERTAG}}
+{% from "dockers/dockerfile-macros.j2" import install_debian_packages, copy_files %}
+ARG BASE=docker-config-engine-bookworm-{{DOCKER_USERNAME}}:{{DOCKER_USERTAG}}
+
+FROM $BASE 
 
 ARG docker_container_name
-RUN [ -f /etc/rsyslog.conf ] && sed -ri "s/%syslogtag%/$docker_container_name#%syslogtag%/;" /etc/rsyslog.conf
 
+## Make apt-get non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
+# RUN [ -f /etc/rsyslog.conf ] && sed -ri "s/%syslogtag%/$docker_container_name#%syslogtag%/;" /etc/rsyslog.conf
 
 RUN apt-get update 
 RUN apt-get install -y \
@@ -15,7 +19,7 @@ RUN apt-get install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get -y install libjemalloc1 libatomic1 liblua5.1-0 lua-bitop lua-cjson
+# RUN apt-get -y install libjemalloc1 libatomic1 liblua5.1-0 lua-bitop lua-cjson
 
 {% if docker_sonic_yang_utils_debs.strip() -%}
 # Copy built Debian packages
