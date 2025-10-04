@@ -29,7 +29,7 @@ SONIC_INSTALL_DOCKER_DBG_IMAGES += $(DOCKER_YANG_UTILS_DBG)
 endif
 
 $(DOCKER_YANG_UTILS)_CONTAINER_NAME = yang-utils
-$(DOCKER_YANG_UTILS)_RUN_OPT += --privileged -t
+$(DOCKER_YANG_UTILS)_RUN_OPT += --net=host --privileged -t
 $(DOCKER_YANG_UTILS)_RUN_OPT += -v /etc/sonic:/etc/sonic:rw
 $(DOCKER_YANG_UTILS)_RUN_OPT += -v /etc:/host_etc:ro
 $(DOCKER_YANG_UTILS)_RUN_OPT += -v /var/run/dbus:/var/run/dbus:rw
