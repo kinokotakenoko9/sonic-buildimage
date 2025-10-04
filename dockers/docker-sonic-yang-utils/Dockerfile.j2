@@ -5,8 +5,8 @@ RUN [ -f /etc/rsyslog.conf ] && sed -ri "s/%syslogtag%/$docker_container_name#%s
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get update 
+RUN apt-get install -y \
     python3-pip \
     python3-flask \
     python3-gunicorn \
@@ -15,16 +15,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY \
-{% for deb in docker_sonic_yang_utils_debs.split(' ') -%}
-debs/{{ deb }}{{' '}}
-{%- endfor -%}
-debs/
+RUN apt-get -y install libjemalloc1 libatomic1 liblua5.1-0 lua-bitop lua-cjson
 
-RUN dpkg -i \
-{% for deb in docker_sonic_yang_utils_debs.split(' ') -%}
-debs/{{ deb }}{{' '}}
-{%- endfor %}
+{% if docker_sonic_yang_utils_debs.strip() -%}
+# Copy built Debian packages
+{{ copy_files("debs/", docker_sonic_yang_utils_debs.split(' '), "/debs/") }}
+
+# Install built Debian packages and implicitly install their dependencies
+{{ install_debian_packages(docker_sonic_yang_utils_debs.split(' ')) }}
+{%- endif %}
 
 COPY ["start.sh", "yang-utils.sh", "/usr/bin/"]
 COPY ["yang_utils_vars.j2", "/usr/share/sonic/templates/"]
@@ -32,6 +31,9 @@ COPY ["supervisord.conf", "/etc/supervisor/conf.d/"]
 
 RUN chmod +x /usr/bin/start.sh
 RUN chmod +x /usr/bin/yang-utils.sh
+
+RUN apt-get clean -y; apt-get autoclean -y; apt-get autoremove -y
+RUN rm -rf /debs
 
 EXPOSE 5000
 
