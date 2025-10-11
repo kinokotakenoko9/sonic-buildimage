@@ -1,11 +1,11 @@
 [Unit]
 Description=Delays management framework container until SONiC has started
-PartOf=netconf-server.service
+PartOf=yang-utils.service
 
 [Timer]
 OnUnitActiveSec=0 sec
-OnBootSec=3min 30 sec
-Unit=netconf-server.service
+OnBootSec=1min 30 sec
+Unit=yang-utils.service
 
 [Install]
 WantedBy=timers.target sonic.target sonic-delayed.target
