@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>SONiC YANG Module Viewer</title>
+</head>
+
+<body>
+    <button id="fetchButton">
+        fetch yang modules
+    </button>
+
+    <div id="output">awaiting request</div>
+
+    <script>
+        const fetchButton = document.getElementById('fetchButton');
+        const outputCode = document.getElementById('output');
+
+        fetchButton.addEventListener('click', async () => {
+            fetchButton.disabled = true;
+
+            try {
+                const response = await fetch('/get-yang-modules');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Server Error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+
+                outputCode.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Fetch error:', error);
+                outputCode.textContent = `Fetch error:\n\n${error.message}`;
+            } finally {
+                fetchButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
