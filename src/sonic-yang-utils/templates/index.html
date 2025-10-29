@@ -3,41 +3,233 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
-    <title>SONiC YANG Module Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONiC YANG Utils</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        #output {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .container {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 300px;
+            margin-right: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
+    <div class="container">
+        <label for="reqMethod">method:</label>
+        <select id="reqMethod">
+            <option value="GET">GET</option>
+            <option value="PATCH" selected>PATCH</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+        </select>
+
+        <label for="reqUrl">URL:</label>
+        <input type="text" id="reqUrl" value="/restconf/data/openconfig-interfaces:interfaces/interface=Ethernet0">
+
+        <label for="reqPayload">Payload (json)</label>
+        <textarea id="reqPayload">
+            {
+                "openconfig-interfaces:interface": [
+                    {
+                        "name": "Ethernet0",
+                        "config": {
+                            "description": "test desc"
+                        }
+                    }
+                ]
+            }
+        </textarea> 
+
+        <button id="sendCustomButton" style="margin-top: 10px;">
+            send
+        </button>
+    </div>
+    <hr>
     <button id="fetchButton">
-        fetch yang modules
+        fetch YANG modules
     </button>
 
-    <div id="output">awaiting request</div>
+    <div class="container">
+        <label for="moduleSelect">select YANG module</label>
+        <select id="moduleSelect" style="width: 300px; margin-right: 10px;">
+            <option value="">fetch to populate list</option>
+        </select>
+        <button id="fetchTreeButton">
+            get tree
+        </button>
+    </div>
+
+    <div id="output">awaiting req</div>
 
     <script>
         const fetchButton = document.getElementById('fetchButton');
-        const outputCode = document.getElementById('output');
+        const descInput = document.getElementById('descInput');
+        const outputDiv = document.getElementById('output');
+        const reqMethod = document.getElementById('reqMethod');
+        const reqUrl = document.getElementById('reqUrl');
+        const reqPayload = document.getElementById('reqPayload');
+        const sendCustomButton = document.getElementById('sendCustomButton');
+        const moduleSelect = document.getElementById('moduleSelect');
+        const fetchTreeButton = document.getElementById('fetchTreeButton');
+
+        function showOutput(text, isError = false) {
+            outputDiv.textContent = text;
+            outputDiv.style.color = isError ? 'red' : 'black';
+        }
 
         fetchButton.addEventListener('click', async () => {
             fetchButton.disabled = true;
+            moduleSelect.disabled = true;
+            showOutput("Fetching YANG modules");
 
             try {
                 const response = await fetch('/get-yang-modules');
+                const data = await response.json(); 
+
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`Server Error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+                    throw new Error(`Server Error: ${response.status} - ${data.message || 'Unknown error'}`);
                 }
 
-                const data = await response.json();
+                const modules = data["ietf-yang-library:modules-state"]?.module;
+                if (!modules) {
+                    throw new Error("Invalid YANG library data structure");
+                }
 
-                outputCode.textContent = JSON.stringify(data, null, 2);
+                moduleSelect.innerHTML = '';
+                modules.forEach(module => {
+                    const option = document.createElement('option');
+                    
+                    option.value = module.name; 
+
+                    option.textContent = `${module.name} (${module.revision || 'no-revision'})`; 
+                    moduleSelect.appendChild(option);
+                });
+
+                showOutput(`Success: Found and populated ${modules.length} modules`);
+                moduleSelect.disabled = false;
             } catch (error) {
                 console.error('Fetch error:', error);
-                outputCode.textContent = `Fetch error:\n\n${error.message}`;
+                showOutput(`Fetch error:\n\n${error.message}`, true);
             } finally {
                 fetchButton.disabled = false;
             }
         });
+
+        fetchTreeButton.addEventListener('click', async () => {
+            const selectedModuleName = moduleSelect.value; 
+            if (!selectedModuleName) {
+                showOutput("Select a module from the list first.", true);
+                return;
+            }
+
+            fetchTreeButton.disabled = true;
+
+            try {
+                const response = await fetch('/get-model-tree', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ module_name: selectedModuleName })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = data.message || 'Unknown error';
+                    const errorDetails = data.details || '';
+                    throw new Error(`Server Error: ${response.status} - ${errorMsg}\n${errorDetails}`);
+                }
+
+                showOutput(data.tree); 
+
+            } catch (error) {
+                console.error('Fetch tree error:', error);
+                showOutput(`Error fetching tree:\n\n${error.message}`, true);
+            } finally {
+                fetchTreeButton.disabled = false;
+            }
+        });
+
+        sendCustomButton.addEventListener('click', async () => {
+            sendCustomButton.disabled = true;
+            const method = reqMethod.value;
+            const url = reqUrl.value;
+            const payload = reqPayload.value;
+
+            try {
+                if (['POST', 'PATCH', 'PUT'].includes(method) && payload.trim()) {
+                    try {
+                        JSON.parse(payload);
+                    } catch (e) {
+                        throw new Error(`Invalid JSON in payload: ${e.message}`);
+                    }
+                }
+
+                const response = await fetch('/custom-request', {
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        method: method,
+                        url: url,
+                        payload: payload
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = data.message || 'Unknown error';
+                    const errorDetails = data.details ? JSON.stringify(data.details, null, 2) : '';
+                    throw new Error(`Server Error: ${response.status} - ${errorMsg}\n${errorDetails}`);
+                }
+
+                showOutput(`Success:\n\n${JSON.stringify(data, null, 2)}`);
+
+            } catch (error) {
+                console.error('Request error:', error);
+                showOutput(`Request error:\n\n${error.message}`, true);
+            } finally {
+                sendCustomButton.disabled = false;
+            }
+        });
     </script>
 </body>
+
 </html>
