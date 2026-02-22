@@ -13,16 +13,16 @@ RUN apt-get update
 RUN apt-get install -y \
     python3-pip \
     python3-flask \
-    python3-gunicorn \
+    gunicorn3 \
     python3-redis \
     python3-requests \
-    jq --no-install-recommends && \
+    jq \ 
+    openssl \ 
+    --no-install-recommends && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install pyang
-
-# RUN apt-get -y install libjemalloc1 libatomic1 liblua5.1-0 lua-bitop lua-cjson
 
 {% if docker_sonic_yang_utils_debs.strip() -%}
 # Copy built Debian packages

@@ -1,120 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SONiC YANG Utils</title>
     <style>
         body {
-            font-family: sans-serif;
-            padding: 20px;
-        }
-
-        #output {
-            background-color: #f4f4f4;
-            border: 1px solid #ddd;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 10px;
-            margin-top: 20px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .container {
-            margin-bottom: 20px;
-        }
-
-        input[type="text"] {
-            width: 300px;
-            margin-right: 10px;
-        }
-
-        textarea {
-            width: 100%;
-            height: 150px;
+            margin: 0;
+            background-color: #f0f2f5;
+            height: 100vh;
             box-sizing: border-box;
+            color: #333;
         }
 
+        /* --- Grid Layout --- */
+        .grid-container {
+            display: grid;
+            height: calc(100vh - 20px);
+            grid-template-columns: 350px 1fr;
+            grid-template-areas: "left right";
+            gap: 10px;
+        }
+
+        #panel-left { 
+            grid-area: left; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+        #panel-right { 
+            grid-area: right; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        /* --- Form Elements --- */
         label {
             display: block;
-            margin-top: 10px;
             margin-bottom: 5px;
-            font-weight: bold;
+            font-weight: 600;
         }
+        
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Important */
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: max-content; /* Make button fit content */
+        }
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        /* button:hover:not(:disabled) {
+            background-color: #0056b3;
+        } */
+        
+        /* --- Left Panel --- */
+        #moduleSelect {
+            flex-grow: 1; /* Takes up top space */
+            margin-bottom: 0;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        #log-output {
+            background-color: #333;
+            color: #eee;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            height: 250px; /* Fixed height for log */
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        /* --- Right Panel --- */
+        #request-builder {
+            flex-shrink: 0; /* Stays at top */
+        }
+        #main-output {
+            flex-grow: 1; /* Fills remaining space */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Important for child scrolling */
+            min-height: 0;
+        }
+        
+        /* Request Builder (Area 1) */
+        .request-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 0 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .request-grid label {
+            margin-bottom: 0;
+            text-align: right;
+        }
+        #reqPayload {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            height: 200px; /* Fixed height for text area */
+            margin-bottom: 10px;
+        }
+
+        /* Main Output (Tabs) */
+        .tab-bar {
+            border-bottom: 1px solid #ddd;
+            padding: 0 10px;
+            flex-shrink: 0;
+        }
+        .tab-button {
+            padding: 10px 15px;
+            border: none;
+            background-color: transparent;
+            color: #555;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .tab-button.active {
+            color: #007bff;
+            /* border-bottom-color: #007bff; */
+        }
+        .tab-content {
+            display: none;
+        }
+        /* SCROLL FIX */
+        .tab-content.active {
+            display: block;
+            flex-grow: 1;
+            overflow-y: auto;
+            height: 100%;
+        }
+        .output-pre {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            min-height: 100%; /* Ensure it fills space for scrolling */
+            box-sizing: border-box;
+        }
+        
+        /* Log Console */
+        .log-entry {
+            padding-bottom: 4px;
+            border-bottom: 1px solid #444;
+            margin-bottom: 4px;
+        }
+        .log-entry.error { color: #ff8a8a; }
+        .log-entry.warn { color: #ffec8a; }
+        .log-entry.info { color: #eee; }
+        .log-entry.success { color: #8aff8a; }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <label for="reqMethod">method:</label>
-        <select id="reqMethod">
-            <option value="GET">GET</option>
-            <option value="PATCH" selected>PATCH</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="DELETE">DELETE</option>
-        </select>
 
-        <label for="reqUrl">URL:</label>
-        <input type="text" id="reqUrl" value="/restconf/data/openconfig-interfaces:interfaces/interface=Ethernet0">
+    <div class="grid-container">
 
-        <label for="reqPayload">Payload (json)</label>
-        <textarea id="reqPayload">
-            {
-                "openconfig-interfaces:interface": [
-                    {
-                        "name": "Ethernet0",
-                        "config": {
-                            "description": "test desc"
-                        }
-                    }
-                ]
+        <div id="panel-left">
+            <select id="moduleSelect" size="10">
+                </select>
+            <div class="button-container">
+                <button id="fetchButton">Fetch</button>
+                <button id="fetchTreeButton">Get Tree</button>
+            </div>
+            <div id="log-output">
+                </div>
+        </div>
+
+        <div id="panel-right">
+            <div id="request-builder">
+                <div class="request-grid">
+                    <!-- <label for="reqMethod"></label> -->
+                    <select id="reqMethod">
+                        <option value="GET">GET</option>
+                        <option value="PATCH" selected>PATCH</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+
+                    <!-- <label for="reqUrl"></label> -->
+                    <input type="text" id="reqUrl" value="/restconf/data/openconfig-interfaces:interfaces/interface=Ethernet0">
+                </div>
+
+                <!-- <label for="reqPayload">Payload (JSON)</label> -->
+                <textarea id="reqPayload" spellcheck="false">{
+    "openconfig-interfaces:interface": [
+        {
+            "name": "Ethernet0",
+            "config": {
+                "description": "test desc"
             }
-        </textarea> 
+        }
+    ]
+}</textarea>
+                <button id="sendCustomButton">Send</button>
+            </div>
 
-        <button id="sendCustomButton" style="margin-top: 10px;">
-            send
-        </button>
+            <div id="main-output">
+                <div class="tab-bar">
+                    <button class="tab-button active" data-tab="tree">Tree</button>
+                    <button class="tab-button" data-tab="response">Response</button>
+                </div>
+
+                <div id="tree" class="tab-content active">
+                    <pre id="tree-output" class="output-pre"></pre>
+                </div>
+                <div id="response" class="tab-content">
+                    <pre id="request-output" class="output-pre"></pre>
+                </div>
+            </div>
+        </div>
+
     </div>
-    <hr>
-    <button id="fetchButton">
-        fetch YANG modules
-    </button>
-
-    <div class="container">
-        <label for="moduleSelect">select YANG module</label>
-        <select id="moduleSelect" style="width: 300px; margin-right: 10px;">
-            <option value="">fetch to populate list</option>
-        </select>
-        <button id="fetchTreeButton">
-            get tree
-        </button>
-    </div>
-
-    <div id="output">awaiting req</div>
 
     <script>
+        // --- Element References ---
         const fetchButton = document.getElementById('fetchButton');
-        const descInput = document.getElementById('descInput');
-        const outputDiv = document.getElementById('output');
+        const logOutput = document.getElementById('log-output');
         const reqMethod = document.getElementById('reqMethod');
         const reqUrl = document.getElementById('reqUrl');
         const reqPayload = document.getElementById('reqPayload');
         const sendCustomButton = document.getElementById('sendCustomButton');
         const moduleSelect = document.getElementById('moduleSelect');
         const fetchTreeButton = document.getElementById('fetchTreeButton');
+        
+        const treeOutput = document.getElementById('tree-output');
+        const requestOutput = document.getElementById('request-output');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
 
-        function showOutput(text, isError = false) {
-            outputDiv.textContent = text;
-            outputDiv.style.color = isError ? 'red' : 'black';
+        // --- Logging Function (Area 3) ---
+        function logMessage(message, level = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${level}`;
+            logEntry.textContent = `[${now}] ${message}`;
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight; // Auto-scroll
         }
 
+        // --- Tab Switching Logic ---
+        function showTab(tabId) {
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => showTab(button.dataset.tab));
+        });
+        showTab('tree'); // Show tree tab by default
+        logMessage("UI initialized.");
+
+        // --- Event Listeners ---
+
+        // Fetch YANG Modules (Area 2)
         fetchButton.addEventListener('click', async () => {
             fetchButton.disabled = true;
             moduleSelect.disabled = true;
-            showOutput("Fetching YANG modules");
+            logMessage("Fetching YANG modules...");
 
             try {
                 const response = await fetch('/get-yang-modules');
@@ -129,41 +307,39 @@
                     throw new Error("Invalid YANG library data structure");
                 }
 
-                moduleSelect.innerHTML = '';
+                moduleSelect.innerHTML = ''; // Clear
                 modules.forEach(module => {
                     const option = document.createElement('option');
-                    
                     option.value = module.name; 
-
                     option.textContent = `${module.name} (${module.revision || 'no-revision'})`; 
                     moduleSelect.appendChild(option);
                 });
 
-                showOutput(`Success: Found and populated ${modules.length} modules`);
+                logMessage(`Success: Found and populated ${modules.length} modules`, 'success');
                 moduleSelect.disabled = false;
             } catch (error) {
                 console.error('Fetch error:', error);
-                showOutput(`Fetch error:\n\n${error.message}`, true);
+                logMessage(`Fetch error: ${error.message}`, 'error');
             } finally {
                 fetchButton.disabled = false;
             }
         });
 
+        // Fetch YANG Tree (Area 2)
         fetchTreeButton.addEventListener('click', async () => {
             const selectedModuleName = moduleSelect.value; 
             if (!selectedModuleName) {
-                showOutput("Select a module from the list first.", true);
+                logMessage("Select a module from the list first.", 'warn');
                 return;
             }
 
             fetchTreeButton.disabled = true;
+            logMessage(`Fetching tree for ${selectedModuleName}...`);
 
             try {
                 const response = await fetch('/get-model-tree', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ module_name: selectedModuleName })
                 });
 
@@ -175,21 +351,27 @@
                     throw new Error(`Server Error: ${response.status} - ${errorMsg}\n${errorDetails}`);
                 }
 
-                showOutput(data.tree); 
+                treeOutput.textContent = data.tree; // Update tree output
+                logMessage(`Successfully fetched tree for ${selectedModuleName}`, 'success');
+                showTab('tree'); // Switch to tree tab
 
             } catch (error) {
                 console.error('Fetch tree error:', error);
-                showOutput(`Error fetching tree:\n\n${error.message}`, true);
+                logMessage(`Error fetching tree: ${error.message}`, 'error');
+                treeOutput.textContent = `Error fetching tree:\n\n${error.message}`;
             } finally {
                 fetchTreeButton.disabled = false;
             }
         });
 
+        // Send Custom Request (Area 1)
         sendCustomButton.addEventListener('click', async () => {
             sendCustomButton.disabled = true;
             const method = reqMethod.value;
             const url = reqUrl.value;
             const payload = reqPayload.value;
+
+            logMessage(`Sending ${method} to ${url}...`);
 
             try {
                 if (['POST', 'PATCH', 'PUT'].includes(method) && payload.trim()) {
@@ -202,9 +384,7 @@
 
                 const response = await fetch('/custom-request', {
                     method: 'POST', 
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         method: method,
                         url: url,
@@ -220,16 +400,19 @@
                     throw new Error(`Server Error: ${response.status} - ${errorMsg}\n${errorDetails}`);
                 }
 
-                showOutput(`Success:\n\n${JSON.stringify(data, null, 2)}`);
+                requestOutput.textContent = JSON.stringify(data, null, 2); // Update response output
+                logMessage(`Request successful: ${response.status}`, 'success');
+                showTab('response'); // Switch to response tab
 
             } catch (error) {
                 console.error('Request error:', error);
-                showOutput(`Request error:\n\n${error.message}`, true);
+                logMessage(`Request error: ${error.message}`, 'error');
+                requestOutput.textContent = `Request error:\n\n${error.message}`;
+                showTab('response'); // Switch to response tab to show error
             } finally {
                 sendCustomButton.disabled = false;
             }
         });
     </script>
 </body>
-
 </html>
